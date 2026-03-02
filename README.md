@@ -29,7 +29,7 @@ HELIOS consists of three components:
 | `io_github_xishie_helios_timer.plist` | LaunchDaemon that runs the script on a schedule |
 | `io_github_xishie_helios_example.mobileconfig` | Example configuration profile containing share definitions |
 
-Deploy these using whatever method works for your environment — MDM, Munki, or otherwise. Just make sure the script is executable and the configuration profile is customized for your environment before deploying.
+You can deploy the packaged version or build your own.
 
 ## Configuration profile
 
@@ -57,3 +57,51 @@ Don't forget to change the path of the script in the LaunchAgent if you're not d
 Logs are written to `~/Library/Logs/helios/helios.log` and are automatically rotated when they exceed 1 MB.
 
 The Cache is written to `~/Library/Caches/helios/ad_groups.txt`.
+
+## Packaging HELIOS for Munki
+If you don't want to use the provided package
+Assuming you have munkipkg installed, you can:
+
+### 1. Clone this repository in your to your Downloads to make your life easier
+
+```bash
+git clone https://github.com/Xishie/helios.git
+```
+
+### 2. Create a the folder structure for munki
+
+```bash
+munkipkg --create helios
+mkdir helios/payload/Library/Application\ Support/helios
+mkdir -p helios/payload/Library/LaunchAgents
+```
+
+### 3. Copy the downloaded repository files to the munki folder
+
+```bash
+cp ~/Downloads/helios/helios.sh helios/payload/Library/Application\ Support/helios/helios.sh
+cp ~/Downloads/helios/io_github_xishie_helios_timer.plist helios/payload/Library/LaunchAgents/io.github.xishie.helios.timer.plist
+cp ~/Downloads/helios/Scripts/preinstall.sh helios/scripts/preinstall
+cp ~/Downloads/helios/Scripts/postinstall.sh helios/scripts/postinstall
+cp ~/Downloads/helios/Scripts/postuninstall.sh helios/scripts/postuninstall
+```
+
+### 4. Change the permissions
+
+```bash
+chmod +x helios/payload/Library/Application\ Support/helios/helios.sh
+chmod +x helios/scripts/preinstall
+chmod +x helios/scripts/postinstall
+chmod +x helios/scripts/postuninstall
+```
+
+### 5. Update the following keys in the build-info.plist
+
+```xml
+<key>identifier</key>
+<string>io.github.xishie.helios</string>
+<key>name</key>
+<string>helios-1.0.pkg</string>
+<key>version</key>
+<string>1.0</string>
+```
