@@ -1,6 +1,4 @@
-# Hybrid Enterprise Logon-aware Identity-based Orchestration for Shares
-HELIOS is a macOS bash tool that leverages the Kerberos Single Sign On Extension to mount shares based on active directory groups. And it has a uselessly complex acronym.
-
+# HELIOS
 ## What it does
 
 HELIOS runs periodically via a LaunchDaemon, checks whether the user is authenticated through the Kerberos SSO Extension, queries Active Directory for group memberships via LDAP, and mounts SMB shares the user is authorized for — all without user interaction.
@@ -52,6 +50,17 @@ Each share dictionary contains:
 
 Don't forget to change the path of the script in the LaunchAgent if you're not deploying it to `/Library/Application\ Support/helios/helios.sh`
 
+## LaunchAgent
+
+The included LaunchAgent triggers the script every 60 seconds. You can either change the timing by changing the start interval key.
+
+```xml
+<key>StartInterval</key>
+<integer>60</integer>
+```
+
+Or you can use your own LaunchAgent(s) too if you need more precise triggers.
+
 ## Logs & Groups Cache
 
 Logs are written to `~/Library/Logs/helios/helios.log` and are automatically rotated when they exceed 1 MB.
@@ -59,8 +68,7 @@ Logs are written to `~/Library/Logs/helios/helios.log` and are automatically rot
 The Cache is written to `~/Library/Caches/helios/ad_groups.txt`.
 
 ## Packaging HELIOS for Munki
-If you don't want to use the provided package
-Assuming you have munkipkg installed, you can:
+If you don't want to use the provided package and assuming you have munkipkg installed, you can:
 
 ### 1. Clone this repository in your to your Downloads to make your life easier
 
