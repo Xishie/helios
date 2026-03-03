@@ -1,7 +1,7 @@
 # HELIOS
 ## What it does
 
-HELIOS runs periodically via a LaunchDaemon, checks whether the user is authenticated through the Kerberos SSO Extension, queries Active Directory for group memberships via LDAP, and mounts SMB shares the user is authorized for — all without user interaction.
+HELIOS runs periodically via a LaunchAgent, checks whether the user is authenticated through the Kerberos SSO Extension, queries Active Directory for group memberships via LDAP, and mounts SMB shares the user is authorized for — all without user interaction.
 
 ## How it works
 
@@ -24,7 +24,7 @@ HELIOS consists of three components:
 | File | Description |
 |------|-------------|
 | `helios.sh` | The main script |
-| `io_github_xishie_helios_timer.plist` | LaunchDaemon that runs the script on a schedule |
+| `io_github_xishie_helios_timer.plist` | LaunchAgent that runs the script on a schedule |
 | `io_github_xishie_helios_example.mobileconfig` | Example configuration profile containing share definitions |
 
 You can deploy the packaged version or build your own.
@@ -101,6 +101,9 @@ chmod +x helios/payload/Library/Application\ Support/helios/helios.sh
 chmod +x helios/scripts/preinstall
 chmod +x helios/scripts/postinstall
 chmod +x helios/scripts/postuninstall
+chmod 755 "helios/payload/Library/Application Support/helios"
+chmod 755 "helios/payload/Library/Application Support"
+chmod 644 "helios/payload/Library/LaunchAgents/io.github.xishie.helios.timer.plist"
 ```
 
 ### 5. Update the following keys in the build-info.plist
@@ -112,4 +115,9 @@ chmod +x helios/scripts/postuninstall
 <string>helios-1.0.pkg</string>
 <key>version</key>
 <string>1.0</string>
+```
+
+### 6. Build it
+```bash
+./munkipkg helios/
 ```
