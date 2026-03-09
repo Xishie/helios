@@ -3,9 +3,6 @@
 # Define launch agents to load
 LAUNCH_AGENTS=(
     "io.github.xishie.helios.timer.plist"
-    "io.github.xishie.helios.ConnectionCompleted.plist"
-    "io.github.xishie.helios.gotNewCredential.plist"
-    "io.github.xishie.helios.InternalNetworkAvailable.plist"
 )
 
 AGENTS_DIR="/Library/LaunchAgents"
@@ -23,7 +20,6 @@ fi
 
 chmod 755 "$HELIOS_DIR"
 chmod +x "$HELIOS_DIR/helios.sh"
-xattr -cr "$HELIOS_DIR/sso_bundle.app" 2>/dev/null || true
 
 CONSOLE_UID=$(/usr/bin/id -u "$CONSOLE_USER" 2>/dev/null)
 
@@ -70,5 +66,4 @@ for AGENT in "${LAUNCH_AGENTS[@]}"; do
 done
 
 echo "Postinstall complete."
-touch /Library/helios/imadeit.iexist
 exit 0

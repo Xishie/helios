@@ -4,6 +4,9 @@
 
 AGENTS=(
   "io.github.xishie.helios.timer"
+  "io.github.xishie.helios.ConnectionCompleted"
+  "io.github.xishie.helios.gotNewCredential"
+  "io.github.xishie.helios.InternalNetworkAvailable"
 )
 
 PLIST_DIR="/Library/LaunchAgents"

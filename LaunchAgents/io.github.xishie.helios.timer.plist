@@ -15,7 +15,7 @@
     <true/>
 
     <key>StartInterval</key>
-    <integer>900</integer>
+    <integer>60</integer>
 
     <key>StandardOutPath</key>
     <string>/tmp/io.github.xishie.helios.timer.out</string>
