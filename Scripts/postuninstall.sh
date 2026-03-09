@@ -1,41 +1,77 @@
 #!/bin/bash
-set -u
+# This script should not be part of the pkg. either run it manually or include it in the munki pkginfo.
+# Fully removes helios: unloads agents, deletes plists, clears logs/cache for all users.
 
-PLIST="/Library/LaunchAgents/io.github.xishie.helios.timer.plist"
-LABEL="io.github.xishie.helios.timer"
-SCRIPT_DIR="/Library/Application Support/helios"
+AGENTS=(
+  "io.github.xishie.helios.timer"
+  "io.github.xishie.helios.ConnectionCompleted"
+  "io.github.xishie.helios.gotNewCredential"
+  "io.github.xishie.helios.InternalNetworkAvailable"
+)
 
-consoleUser="$(stat -f "%Su" /dev/console 2>/dev/null || true)"
+PLIST_DIR="/Library/LaunchAgents"
+HELIOS_DIR="/Library/helios"
 
-echo "HELIOS: postuninstall starting, consoleUser=$consoleUser"
-
-# Try to unload from the active GUI session if there is one
-if [[ -n "$consoleUser" && "$consoleUser" != "loginwindow" ]]; then
-  if uid="$(id -u "$consoleUser" 2>/dev/null)"; then
-    echo "HELIOS: Attempting to unload LaunchAgent from gui/$uid"
-    launchctl bootout "gui/$uid" "$PLIST" 2>/dev/null || true
-    launchctl disable "gui/$uid/$LABEL" 2>/dev/null || true
-
-    # Remove per-user artifacts using the real home directory
-    homeDir="$(dscl . -read "/Users/$consoleUser" NFSHomeDirectory 2>/dev/null | awk '{print $2}' || true)"
-    if [[ -n "$homeDir" && -d "$homeDir" ]]; then
-      echo "HELIOS: Removing logs/cache for $consoleUser in $homeDir"
-      rm -rf "$homeDir/Library/Logs/helios" 2>/dev/null || true
-      rm -rf "$homeDir/Library/Caches/helios" 2>/dev/null || true
-    fi
+get_console_user() {
+  local user
+  user=$(stat -f "%Su" /dev/console 2>/dev/null)
+  if [[ -z "$user" || "$user" == "loginwindow" || "$user" == "_mbsetupuser" ]]; then
+    return 1
   fi
+  echo "$user"
+}
+
+unload_agents_for_uid() {
+  local uid="$1"
+  for label in "${AGENTS[@]}"; do
+    echo "HELIOS: Unloading $label from gui/$uid"
+    launchctl bootout "gui/${uid}" "${PLIST_DIR}/${label}.plist" 2>/dev/null || true
+    launchctl disable "gui/${uid}/${label}" 2>/dev/null || true
+  done
+}
+
+clean_user_artifacts() {
+  local home="$1"
+  if [[ -n "$home" && -d "$home" ]]; then
+    echo "HELIOS: Removing logs/cache in $home"
+    rm -rf "$home/Library/Logs/helios" 2>/dev/null || true
+    rm -rf "$home/Library/Caches/helios" 2>/dev/null || true
+  fi
+}
+
+echo "HELIOS: Postuninstall starting"
+
+# Unload agents from the active GUI session if one exists
+if consoleUser=$(get_console_user); then
+  uid=$(id -u "$consoleUser" 2>/dev/null)
+  [[ -n "$uid" ]] && unload_agents_for_uid "$uid"
 else
-  echo "HELIOS: No active GUI user session found, skipping gui bootout"
+  echo "HELIOS: No active GUI user session, skipping agent bootout"
 fi
 
-# Remove temp stdout/stderr files (if they exist)
-echo "HELIOS: Removing temp stdout/stderr files"
-rm -f /tmp/io.github.xishie.helios.timer.out /tmp/io.github.xishie.helios.timer.err 2>/dev/null || true
+# Clean per-user artifacts for every user on the system
+while IFS= read -r userHome; do
+  [[ -d "$userHome" ]] && clean_user_artifacts "$userHome"
+done < <(dscl . -list /Users NFSHomeDirectory 2>/dev/null | awk '$2 ~ /^\/Users\// {print $2}')
 
-# Optional cleanup of installed files (uncomment if you want full removal)
-echo "HELIOS: Removing installed files"
-rm -f "$PLIST" 2>/dev/null || true
-rm -rf "$SCRIPT_DIR" 2>/dev/null || true
+# Remove temp stdout/stderr files
+echo "HELIOS: Removing temp files"
+for label in "${AGENTS[@]}"; do
+  rm -f "/tmp/${label}.out" "/tmp/${label}.err" 2>/dev/null || true
+done
 
-echo "HELIOS: postuninstall complete"
+# Remove LaunchAgent plists
+echo "HELIOS: Removing LaunchAgent plists"
+for label in "${AGENTS[@]}"; do
+  rm -f "${PLIST_DIR}/${label}.plist" 2>/dev/null || true
+done
+
+# Remove the helios application support directory
+echo "HELIOS: Removing $HELIOS_DIR"
+rm -rf "$HELIOS_DIR" 2>/dev/null || true
+
+echo "HELIOS: Forgetting PKG"
+pkgutil --forget io.github.xishie.helios
+
+echo "HELIOS: Postuninstall complete"
 exit 0
