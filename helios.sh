@@ -141,8 +141,12 @@ get_groups() {
     fi
 
     # Pick the first non-expired cache matching the realm
-    kCache=$(klist -l | awk -v r="$realm" 'NR>1 && $0 !~ /Expired/ && $0 ~ ("@" r) {print $2; exit}')
-
+    kCache=$(klist -l | awk -v r="$realm" 'NR>1 && $0 ~ ("@" r) && $0 !~ /Expired/ {
+    match($0, /API:[A-F0-9-]+/)
+    print substr($0, RSTART, RLENGTH)
+    exit
+    }')
+    
     if [[ -z "$kCache" ]]; then
         log_entry "E" "No valid Kerberos cache found for realm [$realm]"
         exit 0
