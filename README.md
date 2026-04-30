@@ -112,12 +112,27 @@ The postuninstall is not part of the pkg, add it to the munki pkginfo as `uninst
 ```bash
 # Payload
 chmod 755 helios-pkg/payload/Library/helios
-chmod +x helios-pkg/payload/Library/helios/helios.sh
+chmod 755 helios-pkg/payload/Library/helios/helios.sh
 chmod 644 helios-pkg/payload/Library/LaunchAgents/*.plist
 
 # Scripts
-chmod +x helios-pkg/scripts/postinstall
+chmod 755 helios-pkg/scripts/postinstall
+
+# Clear quarantine/download metadata before building
+xattr -cr helios-pkg/payload
+xattr -cr helios-pkg/scripts
 ```
+
+The exact modes matter:
+
+| Path | Mode | Why |
+|------|------|-----|
+| `/Library/helios` | `755` | Allows the user LaunchAgent to traverse the directory |
+| `/Library/helios/helios.sh` | `755` | The LaunchAgent runs `/bin/bash /Library/helios/helios.sh`, so the user must be able to read the script |
+| `/Library/LaunchAgents/*.plist` | `644` | LaunchAgent plists must be readable by the user session |
+| `helios-pkg/scripts/postinstall` | `755` | Installer must be able to execute the package script |
+
+Avoid using only `chmod +x` on payload files. If the source file is `700`, `chmod +x` leaves it unreadable by other users and launchd will report exit code `126` with `Permission denied`.
 
 ### 6. Update build-info.plist
 

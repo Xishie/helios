@@ -8,6 +8,12 @@ LAUNCH_AGENTS=(
 AGENTS_DIR="/Library/LaunchAgents"
 HELIOS_DIR="/Library/helios"
 
+chmod 755 "$HELIOS_DIR"
+chmod 755 "$HELIOS_DIR/helios.sh"
+chmod 644 "$AGENTS_DIR"/io.github.xishie.helios.*.plist 2>/dev/null || true
+xattr -cr "$HELIOS_DIR" 2>/dev/null || true
+xattr -c "$AGENTS_DIR"/io.github.xishie.helios.*.plist 2>/dev/null || true
+
 # Get the console user (the one sitting at the GUI)
 CONSOLE_USER=$(/usr/bin/stat -f "%Su" /dev/console 2>/dev/null)
 
@@ -17,9 +23,6 @@ if [[ -z "$CONSOLE_USER" || "$CONSOLE_USER" == "loginwindow" || "$CONSOLE_USER" 
     echo "No GUI user logged in (console user: '${CONSOLE_USER:-none}'). Skipping agent loading."
     exit 0
 fi
-
-chmod 755 "$HELIOS_DIR"
-chmod +x "$HELIOS_DIR/helios.sh"
 
 CONSOLE_UID=$(/usr/bin/id -u "$CONSOLE_USER" 2>/dev/null)
 
@@ -64,6 +67,9 @@ for AGENT in "${LAUNCH_AGENTS[@]}"; do
         echo "  WARNING: Failed to load $LABEL (exit $?)."
     fi
 done
+
+# Invalidate cached AD groups so nested membership is used immediately after update.
+/bin/rm -f "/Users/$CONSOLE_USER/Library/Caches/helios/ad_groups.txt"
 
 echo "Postinstall complete."
 exit 0
