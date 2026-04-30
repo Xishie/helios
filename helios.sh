@@ -114,6 +114,9 @@ check_auth() {
 
 get_groups() {
     local kCache
+    local user_dn_output
+    local user_dn
+    local user_dn_filter
     local output
     local rc
 
@@ -154,16 +157,36 @@ get_groups() {
         log_entry "I" "Using Kerberos cache [$kCache]"
     fi
 
-    output=$(KRB5CCNAME="$kCache" ldapsearch -LLL -Y GSSAPI -H "ldap://$domain" -b "$domainPath" "(sAMAccountName=$adUser)" memberOf 2>&1)
+    user_dn_output=$(KRB5CCNAME="$kCache" ldapsearch -LLL -o ldif-wrap=no -Y GSSAPI -H "ldap://$domain" -b "$domainPath" "(&(objectClass=user)(sAMAccountName=$adUser))" distinguishedName 2>&1)
     rc=$?
 
     if [[ $rc -ne 0 ]]; then
-        log_entry "E" "ldapsearch failed for [$adUser], rc=$rc"
+        log_entry "E" "ldapsearch failed resolving DN for [$adUser], rc=$rc"
+        log_entry "E" "ldapsearch output: $user_dn_output"
+        exit 0
+    fi
+
+    user_dn=$(printf '%s\n' "$user_dn_output" | awk -F': ' '/^distinguishedName:/ {print $2; exit}')
+
+    if [[ -z "$user_dn" ]]; then
+        log_entry "E" "Could not resolve distinguishedName for [$adUser]"
+        log_entry "E" "ldapsearch output: $user_dn_output"
+        exit 0
+    fi
+
+    log_entry "I" "Resolved distinguishedName for [$adUser]"
+    user_dn_filter=$(printf '%s\n' "$user_dn" | sed -e 's/\\/\\5c/g' -e 's/\*/\\2a/g' -e 's/(/\\28/g' -e 's/)/\\29/g')
+
+    output=$(KRB5CCNAME="$kCache" ldapsearch -LLL -o ldif-wrap=no -Y GSSAPI -H "ldap://$domain" -b "$domainPath" "(&(objectClass=group)(member:1.2.840.113556.1.4.1941:=$user_dn_filter))" cn 2>&1)
+    rc=$?
+
+    if [[ $rc -ne 0 ]]; then
+        log_entry "E" "ldapsearch failed resolving recursive groups for [$adUser], rc=$rc"
         log_entry "E" "ldapsearch output: $output"
         exit 0
     fi
 
-    ad_groups=$(printf '%s\n' "$output" | awk -F'[=,]' '/^memberOf:[[:space:]]/ {print $2}')
+    ad_groups=$(printf '%s\n' "$output" | awk -F': ' '/^cn:/ {print $2}' | sort -u)
 
     if [[ -z "$ad_groups" ]]; then
         log_entry "W" "No AD groups found for [$adUser]"
