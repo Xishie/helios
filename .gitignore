@@ -1,3 +1,10 @@
 .DS_Store
 local.mobileconfig
 localconfigs/
+
+# Swift build output — never commit the compiled/signed binary or pkg.
+# Build from source and sign with your own Developer ID (see README).
+.build/
+.swiftpm/
+dist/
+*.pkg

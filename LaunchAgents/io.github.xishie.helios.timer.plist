@@ -7,8 +7,7 @@
 
     <key>ProgramArguments</key>
     <array>
-      <string>/bin/bash</string>
-      <string>/Library/helios/helios.sh</string>
+      <string>/Library/helios/helios</string>
     </array>
 
     <key>RunAtLoad</key>

@@ -9,10 +9,15 @@ AGENTS_DIR="/Library/LaunchAgents"
 HELIOS_DIR="/Library/helios"
 
 chmod 755 "$HELIOS_DIR"
-chmod 755 "$HELIOS_DIR/helios.sh"
+chmod 755 "$HELIOS_DIR/helios"
 chmod 644 "$AGENTS_DIR"/io.github.xishie.helios.*.plist 2>/dev/null || true
 xattr -cr "$HELIOS_DIR" 2>/dev/null || true
 xattr -c "$AGENTS_DIR"/io.github.xishie.helios.*.plist 2>/dev/null || true
+
+# Remove the legacy bash implementation and any stale single-instance lock
+# when upgrading from helios 1.x.
+rm -f "$HELIOS_DIR/helios.sh" "$HELIOS_DIR/helios.sh.bkp" 2>/dev/null || true
+rm -rf /tmp/helios.lock 2>/dev/null || true
 
 # Get the console user (the one sitting at the GUI)
 CONSOLE_USER=$(/usr/bin/stat -f "%Su" /dev/console 2>/dev/null)
