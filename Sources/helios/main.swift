@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 // Every early-out exits 0 so launchd never marks the run as failed; the
 // LaunchAgent simply tries again on its next interval.
@@ -6,21 +7,63 @@ import Foundation
 let log = Log.shared
 log.i("Logging execution of [helios] to [\(log.path)]")
 
-// --- single-instance lock (atomic mkdir, like the bash version) ---
+// --- single-instance lock ---
+//
+// The lock must be released on *every* exit path. Swift `defer` does NOT run
+// when exit() is called, and exit(0) is used for all the not-ready early-outs
+// (network down, not authenticated, ...). So cleanup is registered with
+// atexit(), which does run on exit(). As an extra safeguard the lock records
+// its owner PID and a lock whose owner is no longer alive (kill -9, panic,
+// power loss) is reclaimed rather than blocking forever.
 let lockDir = "/tmp/helios.lock"
-do {
-    try FileManager.default.createDirectory(
-        atPath: lockDir, withIntermediateDirectories: false)
-} catch {
+let lockPidFile = lockDir + "/pid"
+
+func releaseLock() {
+    try? FileManager.default.removeItem(atPath: lockDir)
+}
+
+func processAlive(_ pid: Int32) -> Bool {
+    if pid <= 0 { return false }
+    if kill(pid, 0) == 0 { return true }
+    return errno == EPERM        // exists but not signalable -> alive
+}
+
+func acquireLock() -> Bool {
+    let fm = FileManager.default
+
+    func makeLock() -> Bool {
+        guard (try? fm.createDirectory(atPath: lockDir,
+                                       withIntermediateDirectories: false)) != nil
+        else { return false }
+        try? "\(getpid())".write(toFile: lockPidFile,
+                                 atomically: true, encoding: .utf8)
+        atexit { releaseLock() }
+        return true
+    }
+
+    if makeLock() { return true }
+
+    // Lock exists — only honour it if its owner is still running.
+    var ownerPid: Int32 = -1
+    if let s = try? String(contentsOfFile: lockPidFile, encoding: .utf8),
+       let p = Int32(s.trimmingCharacters(in: .whitespacesAndNewlines)) {
+        ownerPid = p
+    }
+    if processAlive(ownerPid) { return false }
+
+    log.w("Reclaiming stale lock (owner pid \(ownerPid) not running)")
+    try? fm.removeItem(atPath: lockDir)
+    return makeLock()
+}
+
+if !acquireLock() {
     log.i("Another instance is already running, exiting")
     exit(0)
 }
-defer { try? FileManager.default.removeItem(atPath: lockDir) }
 
 func finish() -> Never {
     log.i("Fininshed logging execution of [helios] to [\(log.path)]")
-    try? FileManager.default.removeItem(atPath: lockDir)
-    exit(0)
+    exit(0)   // atexit releases the lock
 }
 
 // --- preferences ---
