@@ -12,8 +12,7 @@ framework** (`NetFSMountURLSync`) — the same engine Finder / "Connect to
 Server" uses — which means:
 
 - **Windows DFS is followed transparently**, including nested per-folder DFS
-  junctions. `mount_smbfs` does *not* follow these, which is why a plain
-  `mount_smbfs` approach fails on DFS namespaces.
+  junctions.
 - It mounts with the **NoUI** option, so it never shows an authentication
   dialog: silent success when a Kerberos ticket is present, a logged error
   otherwise.
@@ -122,7 +121,7 @@ codesign --verify --strict --verbose=2 .build/apple/Products/Release/helios
 `--options runtime` (hardened runtime) is optional but makes the binary
 notarization-ready.
 
-> The signed binary and the built pkg are intentionally **not** committed to
+> The signed binary and the built pkg are not committed to
 > this repository — build and sign with your own certificate.
 
 ### Packaging
@@ -153,15 +152,12 @@ Stage and build on a local disk, not a cloud-synced folder — `pkgbuild` and
 `installer` can stall mid-extraction reading from a FileProvider mount.
 
 **Notarization is not required** for MDM/munki deployment: pkgs installed by
-munki or an MDM are not quarantined, so Gatekeeper never evaluates them. The
-binary is notarization-ready if you ever need it (`xcrun notarytool submit`).
+munki or an MDM are not quarantined, so Gatekeeper never evaluates them.
 
 ### Munki
 
-Keep the package `identifier` as `io.github.xishie.helios` and bump
-`--version` per release — munki then treats it as an upgrade of the existing
-install rather than a parallel one. Add the contents of
-`Scripts/postuninstall.sh` as the `uninstall_script` in your pkginfo.
+Add the contents of `Scripts/postuninstall.sh` as the `uninstall_script`
+in your pkginfo.
 
 The postinstall script loads the timer LaunchAgent into the current user's
 GUI session, removes any legacy `helios.sh` from helios 1.x, and clears the
