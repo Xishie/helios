@@ -51,10 +51,13 @@ for AGENT in "${LAUNCH_AGENTS[@]}"; do
         continue
     fi
 
-    # Check if the service is already loaded
+    # If the label is already loaded, bootout first so the new plist's
+    # ProgramArguments take effect. Upgrades from helios 1.x leave the
+    # legacy bash wrapper registered under the same label; without a
+    # bootout, launchd keeps running the cached (now-missing) helios.sh.
     if /bin/launchctl print "$SERVICE_TARGET" &>/dev/null; then
-        echo "  Already loaded. Skipping."
-        continue
+        echo "  Already loaded — booting out to refresh registration."
+        /bin/launchctl bootout "$SERVICE_TARGET" 2>&1 || true
     fi
 
     # Re-enable the agent if it was disabled (e.g. by a previous uninstall)
